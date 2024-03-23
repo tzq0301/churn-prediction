@@ -1,2 +1,4 @@
+import structlog
+
 if __name__ == '__main__':
-    print('Hello World!')
+    log = structlog.get_logger()
