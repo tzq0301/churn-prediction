@@ -1,0 +1,1 @@
+python main.py --filepath data/train.csv --mode train
