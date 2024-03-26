@@ -1,10 +1,13 @@
-import argparse
 from typing import List
 
+from imblearn.over_sampling import SMOTE
 import pandas as pd
 from pandas import DataFrame
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import structlog
 
 
@@ -48,16 +51,47 @@ def preprocess(df: DataFrame) -> DataFrame:
 
 
 if __name__ == '__main__':
-    args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--filepath", type=str, required=True, help="path to data file")
-    args_parser.add_argument("--mode", type=str, required=True, choices=['train', 'predict'])
-    args_parser.add_argument("--output", type=str, help="output file in predict mode")
-    args = args_parser.parse_args()
-
     log = structlog.get_logger()
 
-    data: DataFrame = load_data(args.filepath)
-    log.msg('load data', mode=args.mode, filepath=args.filepath, total=len(data))
+    data: DataFrame = load_data("data/train.csv")
+    log.msg('load train data', total=len(data))
 
     data = preprocess(data)
     log.msg('data preprocess done')
+
+    X = data.drop('Exited', axis=1)
+    y = data['Exited']
+
+    X, y = SMOTE().fit_resample(X, y)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
+    model = GradientBoostingClassifier()
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+
+    print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+    print(classification_report(y_test, y_pred))
+
+    # --------------------------
+
+    data: DataFrame = load_data("data/test.csv")
+    log.msg('load test data', total=len(data))
+
+    data = preprocess(data)
+    log.msg('data preprocess done')
+
+    X = data
+
+    X = scaler.transform(X)
+
+    pred = model.predict(X)
+
+    with open('522023330089.txt', 'w') as f:
+        for line in pred:
+            f.write(str(line) + '\n')
